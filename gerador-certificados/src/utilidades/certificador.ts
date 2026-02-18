@@ -51,29 +51,31 @@ export const gerarZipCertificados = async (dados: any[], templateImageUint8: Uin
     // --- TRATAMENTO DE DADOS (Focado no seu Excel) ---
     const limparValor = (valor: any) => {
       if (valor === undefined || valor === null || valor === 'undefined') return '';
-      if (valor instanceof Date) {
-        const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-        return meses[valor.getMonth()];
-      }
       return String(valor).trim();
     };
 
     const cargo = limparValor(pessoa['Cargo'] || 'Membro');
     const liga = limparValor(pessoa['Liga'] || 'DeLAMU');
     
-    // Mapeamento direto das colunas do seu print: "Início" e "Conclusão"
-    const mesInicio = limparValor(pessoa['Início'] || pessoa['Inicio'] || pessoa['Mes Inicio']);
-    const mesFim = limparValor(pessoa['Conclusão'] || pessoa['Conclusao'] || pessoa['Mes Conclusao']);
+    // Prioridade total para os nomes exatos da sua planilha
+    const mesInicio = limparValor(pessoa['Início'] || pessoa['Inicio']);
+    const mesFim = limparValor(pessoa['Conclusão'] || pessoa['Conclusao']);
     const ano = limparValor(pessoa['Ano'] || '2025');
 
-    // Tratamento de Horas (Lida com 05:00 ou 0.4166)
+    // horas: x:xx
     let horasRaw = limparValor(pessoa['Horas'] || '0');
-    let horas = horasRaw;
+    let horasExibicao = "";
 
     if (horasRaw.includes(':')) {
-      horas = horasRaw.split(':')[0]; // Pega o "05" de "05:00"
+      // Se já vier "05:00", garantimos que não tenha espaços e usamos como está
+      horasExibicao = horasRaw;
     } else if (horasRaw.includes('.') && parseFloat(horasRaw) < 1) {
-      horas = Math.round(parseFloat(horasRaw) * 24).toString();
+      // Se vier como fração do Excel (0.4166), converte para o número e adiciona :00
+      const numHoras = Math.round(parseFloat(horasRaw) * 24);
+      horasExibicao = `${numHoras}:00`;
+    } else {
+      // Se vier apenas o número (ex: "10"), adiciona o :00
+      horasExibicao = `${horasRaw}:00`;
     }
 
     // --- DESENHO DOS TEXTOS ---
@@ -90,7 +92,7 @@ export const gerarZipCertificados = async (dados: any[], templateImageUint8: Uin
     });
 
     // 2. Frase do Corpo (Dinâmica)
-    const fraseCorpo = `Pela participação na condição de ${cargo} da Liga Acadêmica de ${liga} do CEUB, durante os meses de ${mesInicio} a ${mesFim} de ${ano}, totalizando ${horas} horas complementares.`;
+    const fraseCorpo = `Pela participação na condição de ${cargo} da Liga Acadêmica de ${liga} do CEUB, durante os meses de ${mesInicio} a ${mesFim} de ${ano}, totalizando ${horasExibicao} horas complementares.`;
     
     const fontSizeCorpo = 17;
     const maxWidth = 650;

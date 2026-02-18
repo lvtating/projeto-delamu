@@ -8,7 +8,6 @@ export default function GeradorPage() {
   const [dados, setDados] = useState<any[]>([]);
   const [template, setTemplate] = useState<Uint8Array | null>(null);
 
-  // Carrega o template automaticamente ao abrir a página
   useEffect(() => {
     const carregarTemplate = async () => {
       try {
@@ -31,22 +30,15 @@ export default function GeradorPage() {
     const reader = new FileReader();
     reader.onload = (evt) => {
       const bstr = evt.target?.result;
-      // ADICIONADO: cellDates: true e raw: false para melhor leitura
-      const wb = XLSX.read(bstr, { 
-        type: 'binary',
-        cellDates: true, 
-        cellText: false 
-      });
-      
+      // raw: false faz o XLSX ler o "texto exibido" na célula
+      const wb = XLSX.read(bstr, { type: 'binary', raw: false });
       const wsname = wb.SheetNames[0];
       const ws = wb.Sheets[wsname];
-      
-      // O sheet_to_json agora vai receber datas reais
       const data = XLSX.utils.sheet_to_json(ws);
       
-      console.log("Conteúdo do Excel:", data); 
+      console.log("DADOS CAPTURADOS:", data[0]); 
       setDados(data);
-      alert(`${data.length} nomes carregados com sucesso!`);
+      alert(`${data.length} nomes carregados!`);
     };
     reader.readAsBinaryString(file);
   };
