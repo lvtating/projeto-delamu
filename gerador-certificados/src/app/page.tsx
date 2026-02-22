@@ -5,57 +5,112 @@ import * as XLSX from 'xlsx';
 import { gerarZipCertificados } from '../utilidades/certificador';
 
 export default function GeradorPage() {
-  const [dados, setDados] = useState<any[]>([]);
-  const [template, setTemplate] = useState<Uint8Array | null>(null);
+  // Alterado para armazenar o objeto com alunos e cronograma
+  const [dados, setDados] = useState<{ alunos: any[], cronograma: any[] } | null>(null);
+  const [templateFrente, setTemplateFrente] = useState<Uint8Array | null>(null);
+  const [templateVerso, setTemplateVerso] = useState<Uint8Array | null>(null);
   
-  // Estado para os nomes que o cliente vai preencher na tela
   const [gestao, setGestao] = useState({
     coordenadorLiga: "",
     presidenteDelamu: "",
     coordenadorCurso: ""
   });
 
-  // Carrega o template automaticamente ao abrir a página
+  // Carrega os dois templates (Frente e Verso) automaticamente
   useEffect(() => {
-    const carregarTemplate = async () => {
+    const carregarTemplates = async () => {
       try {
-        const response = await fetch('/certificado.png');
-        if (!response.ok) throw new Error("Template não encontrado na pasta public");
-        const arrayBuffer = await response.arrayBuffer();
-        setTemplate(new Uint8Array(arrayBuffer));
-        console.log("Template carregado com sucesso!");
+        const [resFrente, resVerso] = await Promise.all([
+          fetch('/certificado.png'),
+          fetch('/versocertificado.png')
+        ]);
+        
+        if (!resFrente.ok || !resVerso.ok) throw new Error("Templates não encontrados na pasta public");
+        
+        const [bufferFrente, bufferVerso] = await Promise.all([
+          resFrente.arrayBuffer(),
+          resVerso.arrayBuffer()
+        ]);
+
+        setTemplateFrente(new Uint8Array(bufferFrente));
+        setTemplateVerso(new Uint8Array(bufferVerso));
+        console.log("Templates carregados com sucesso!");
       } catch (error) {
-        console.error("Erro ao carregar template:", error);
+        console.error("Erro ao carregar templates:", error);
       }
     };
-    carregarTemplate();
+    carregarTemplates();
   }, []);
 
-  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const bstr = evt.target?.result;
-      // raw: false garante que o Excel leia "Julho" como texto e não como data interna
-      const wb = XLSX.read(bstr, { type: 'binary', raw: false });
-      const wsname = wb.SheetNames[0];
-      const ws = wb.Sheets[wsname];
-      const data = XLSX.utils.sheet_to_json(ws);
-      
-      console.log("Conteúdo do Excel carregado:", data[0]); 
-      setDados(data);
-      alert(`${data.length} nomes carregados com sucesso!`);
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary', raw: false });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        
+        // Convertemos para matriz de strings para evitar problemas de tipos
+        const matriz: string[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+
+        let listaAlunos: any[] = [];
+        let listaCrono: any[] = [];
+        
+        // 1. EXTRAÇÃO DE ALUNOS (Procuramos pela linha que contém 'Nome')
+        const indexLinhaAlunos = matriz.findIndex(row => row.some(cell => String(cell).trim() === "Nome"));
+        if (indexLinhaAlunos !== -1) {
+          const cabecalho = matriz[indexLinhaAlunos].map(c => String(c).trim());
+          // Pegamos as linhas abaixo até encontrar uma linha vazia ou a tabela de aulas
+          for (let i = indexLinhaAlunos + 1; i < matriz.length; i++) {
+            const linha = matriz[i];
+            if (!linha[cabecalho.indexOf("Nome")]) break; // Para se não houver nome
+            if (linha.some(cell => String(cell).trim() === "Data")) break; // Para se chegar nas aulas
+            
+            const obj: any = {};
+            cabecalho.forEach((label, idx) => { if(label) obj[label] = linha[idx]; });
+            listaAlunos.push(obj);
+          }
+        }
+
+        // 2. EXTRAÇÃO DE CRONOGRAMA 
+        const indexLinhaCrono = matriz.findIndex(row => row.some(cell => String(cell).trim() === "Data"));
+        
+        if (indexLinhaCrono !== -1) {
+          const cabecalhoCrono = matriz[indexLinhaCrono].map(c => String(c).trim());
+          // Pegamos tudo o que estiver abaixo desta linha
+          for (let i = indexLinhaCrono + 1; i < matriz.length; i++) {
+            const linha = matriz[i];
+            if (!linha[cabecalhoCrono.indexOf("Data")]) continue; // Pula linhas sem data
+
+            const obj: any = {};
+            cabecalhoCrono.forEach((label, idx) => { 
+              if(label) obj[label] = linha[idx]; 
+            });
+            listaCrono.push(obj);
+          }
+        }
+
+        console.log("Alunos:", listaAlunos);
+        console.log("Aulas:", listaCrono);
+
+        setDados({ alunos: listaAlunos, cronograma: listaCrono });
+        alert(`${listaAlunos.length} nomes e ${listaCrono.length} aulas carregadas!`);
+
+      } catch (err) {
+        console.error("Erro Crítico:", err);
+        alert("Erro ao processar. Veja o console (F12).");
+      }
     };
     reader.readAsBinaryString(file);
   };
-//FFFFF0
+
   return (
     <main className="min-h-screen p-8 bg-[#F5F2D0] flex flex-col items-center">
       <h1 className="text-3xl font-bold mb-6 text-[#800000]">Gerador DeLAMU</h1>
       
-      {/* SEÇÃO 1: NOMES DAS ASSINATURAS (Para o cliente preencher) */}
       <div className="bg-[#FFFFF0] p-6 rounded-lg shadow-md w-full max-w-md space-y-4 mb-6 border border-gray-100">
         <h2 className="font-bold text-[#800000] border-b pb-2 flex items-center gap-2">
           <span>✍️</span> Assinaturas do Certificado
@@ -68,7 +123,7 @@ export default function GeradorPage() {
             value={gestao.coordenadorLiga}
             onChange={(e) => setGestao({...gestao, coordenadorLiga: e.target.value})}
             className="w-full border p-2 rounded text-sm text-black focus:ring-2 focus:ring-[#800000] outline-none"
-            placeholder="Nome que aparecerá à esquerda"
+            placeholder="Nome à esquerda"
           />
         </div>
 
@@ -79,7 +134,7 @@ export default function GeradorPage() {
             value={gestao.presidenteDelamu}
             onChange={(e) => setGestao({...gestao, presidenteDelamu: e.target.value})}
             className="w-full border p-2 rounded text-sm text-black focus:ring-2 focus:ring-[#800000] outline-none"
-            placeholder="Nome que aparecerá no centro"
+            placeholder="Nome ao centro"
           />
         </div>
 
@@ -90,38 +145,37 @@ export default function GeradorPage() {
             value={gestao.coordenadorCurso}
             onChange={(e) => setGestao({...gestao, coordenadorCurso: e.target.value})}
             className="w-full border p-2 rounded text-sm text-black focus:ring-2 focus:ring-[#800000] outline-none"
-            placeholder='Nome que aparecerá à direita'
+            placeholder='Nome à direita'
           />
         </div>
       </div>
 
-      {/* SEÇÃO 2: UPLOAD E GERAÇÃO */}
       <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-md space-y-6 border border-gray-100">
         <div className="border-2 border-dashed border-gray-200 p-4 rounded-lg hover:border-[#800000] transition-colors">
-          <label className="block text-sm font-medium mb-2 text-gray-700">1. Suba a Planilha (Excel)</label>
+          <label className="block text-sm font-medium mb-2 text-gray-700">1. Suba a Planilha Única</label>
           <input 
             type="file" 
             accept=".xlsx, .xls" 
             onChange={handleExcelUpload} 
-            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#800000] file:text-white hover:file:bg-[#8B0000]" 
+            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#800000] file:text-white" 
           />
         </div>
 
         <div className="flex items-center justify-between text-xs">
-          <span className={template ? "text-green-600 font-bold" : "text-amber-600"}>
-            {template ? "✅ Template Pronto" : "⏳ Carregando Template..."}
+          <span className={templateFrente && templateVerso ? "text-green-600 font-bold" : "text-amber-600"}>
+            {templateFrente && templateVerso ? "✅ Templates Prontos" : "⏳ Carregando Imagens..."}
           </span>
-          <span className={dados.length > 0 ? "text-green-600 font-bold" : "text-gray-400"}>
-            {dados.length > 0 ? `✅ ${dados.length} nomes` : "❌ Sem dados"}
+          <span className={dados ? "text-green-600 font-bold" : "text-gray-400"}>
+            {dados ? `✅ ${dados.alunos.length} alunos` : "❌ Sem dados"}
           </span>
         </div>
 
         <button
-          onClick={() => template && dados.length > 0 && gerarZipCertificados(dados, template, gestao)}
-          disabled={!template || dados.length === 0 || !gestao.coordenadorLiga || !gestao.presidenteDelamu}
+          onClick={() => dados && templateFrente && templateVerso && gerarZipCertificados(dados.alunos, dados.cronograma, templateFrente, templateVerso, gestao)}
+          disabled={!templateFrente || !templateVerso || !dados || !gestao.coordenadorLiga || !gestao.presidenteDelamu || !gestao.coordenadorCurso}
           className="w-full bg-[#800000] text-white py-4 rounded-md font-bold hover:bg-[#8B0000] disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed transition-all shadow-lg"
         >
-          {dados.length > 0 ? `2. GERAR CERTIFICADOS (.ZIP)` : "Aguardando Excel..."}
+          {dados ? `2. GERAR CERTIFICADOS (.ZIP)` : "Aguardando Excel..."}
         </button>
       </div>
     </main>
