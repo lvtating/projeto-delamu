@@ -12,7 +12,6 @@ export const gerarZipCertificados = async (
 ) => {
   const zip = new JSZip();
 
-  // Carregamento das fontes
   const [boldBytes, regularBytes] = await Promise.all([
     fetch('/fonts/JosefinSlab-Bold.ttf').then(res => res.arrayBuffer()),
     fetch('/fonts/JosefinSlab-Regular.ttf').then(res => res.arrayBuffer())
@@ -62,9 +61,15 @@ export const gerarZipCertificados = async (
     const imgFrente = await pdfDoc.embedPng(templateFrente);
     page1.drawImage(imgFrente, { x: 0, y: 0, width: 841.89, height: 595.28 });
 
-    /* nome do aluno */ 
-    const nomeSize = 38;
-    const nomeWidth = fontBold.widthOfTextAtSize(nome, nomeSize);
+    let nomeSize = 38;
+    const larguraMaximaNome = 700;
+    let nomeWidth = fontBold.widthOfTextAtSize(nome, nomeSize);
+
+    if (nomeWidth > larguraMaximaNome) {
+      nomeSize = (larguraMaximaNome / nomeWidth) * nomeSize;
+      nomeWidth = fontBold.widthOfTextAtSize(nome, nomeSize);
+    }
+
     page1.drawText(nome, {
       x: (841.89 / 2) - (nomeWidth / 2),
       y: 325,
@@ -73,7 +78,6 @@ export const gerarZipCertificados = async (
       color: rgb(0.1, 0.1, 0.1),
     });
 
-    /* frase de corpo */
     const cargo = limparValor(aluno['Cargo'] || 'Membro');
     const liga = limparValor(aluno['Liga'] || 'DeLAMU');
     const inicio = limparValor(aluno['Início'] || 'Julho');
@@ -88,98 +92,104 @@ export const gerarZipCertificados = async (
       page1.drawText(linha, { x: (841.89/2) - (lWidth/2), y: 260 - (i * 22), size: 17, font: fontRegular });
     });
 
-    /* assinaturas coordenação/direção */
     const fontSizeAssinatura = 10;
     const desenharAssinatura = (texto: string, xCentro: number) => {
       const txt = (texto || "").toUpperCase();
       const txtWidth = fontRegular.widthOfTextAtSize(txt, fontSizeAssinatura);
-      page1.drawText(txt, { 
-        x: xCentro - (txtWidth / 2),
-        y: 110, 
-        size: fontSizeAssinatura,
-        font: fontRegular,
-      });
+      page1.drawText(txt, { x: xCentro - (txtWidth / 2), y: 110, size: fontSizeAssinatura, font: fontRegular });
     };
 
     desenharAssinatura(gestao.coordenadorLiga, 165);
     desenharAssinatura(gestao.presidenteDelamu, 841.89 / 2); 
     desenharAssinatura(gestao.coordenadorCurso, 680);
 
-/*===================================== PÁGINA 2 (VERSO) =========================================*/
+    /*===================================== PÁGINA 2 (VERSO) =========================================*/
     const page2 = pdfDoc.addPage([841.89, 595.28]);
     const imgVerso = await pdfDoc.embedPng(templateVerso);
     page2.drawImage(imgVerso, { x: 0, y: 0, width: 841.89, height: 595.28 });
 
-    // --- 1. CONFIGURAÇÕES DA TABELA ---
     const margemEsquerda = 50;
     const larguraTotal = page2.getWidth() - 100;
     const alturaLinha = 22; 
     const limiteInferior = 80; 
 
-    const colunas = {
-      data: 80, local: 100, horas: 50, tema: 280, palestrante: 180
+    const colunas = [
+      { id: 'data', label: 'Data', largura: 80, x: margemEsquerda },
+      { id: 'local', label: 'Local', largura: 100, x: margemEsquerda + 80 },
+      { id: 'horas', label: 'Horas', largura: 50, x: margemEsquerda + 180 },
+      { id: 'tema', label: 'Tema', largura: 280, x: margemEsquerda + 230 },
+      { id: 'palestrante', label: 'Palestrante', largura: 180, x: margemEsquerda + 510 }
+    ];
+
+    const obterXCentro = (texto: string, larguraCol: number, xBase: number, tamanho: number, fonte: any) => {
+      const larguraTexto = fonte.widthOfTextAtSize(texto, tamanho);
+      return xBase + (larguraCol / 2) - (larguraTexto / 2);
     };
 
-    // --- 2. FUNÇÃO PARA DESENHAR O CABEÇALHO ---
     const desenharCabecalhoManual = (pagina: any, y: number) => {
       pagina.drawLine({ start: { x: margemEsquerda, y }, end: { x: margemEsquerda + larguraTotal, y }, thickness: 1 });
       const yTexto = y - 15;
-      const estiloT = { size: 10, font: fontBold };
-      pagina.drawText('Data', { x: margemEsquerda + 5, y: yTexto, ...estiloT });
-      pagina.drawText('Local', { x: margemEsquerda + colunas.data + 5, y: yTexto, ...estiloT });
-      pagina.drawText('Horas', { x: margemEsquerda + colunas.data + colunas.local + 5, y: yTexto, ...estiloT });
-      pagina.drawText('Tema', { x: margemEsquerda + colunas.data + colunas.local + colunas.horas + 5, y: yTexto, ...estiloT });
-      pagina.drawText('Palestrante', { x: margemEsquerda + colunas.data + colunas.local + colunas.horas + colunas.tema + 5, y: yTexto, ...estiloT });
+      colunas.forEach(col => {
+        const xCentro = obterXCentro(col.label, col.largura, col.x, 10, fontBold);
+        pagina.drawText(col.label, { x: xCentro, y: yTexto, size: 10, font: fontBold });
+      });
       pagina.drawLine({ start: { x: margemEsquerda, y: y - 22 }, end: { x: margemEsquerda + larguraTotal, y: y - 22 }, thickness: 1 });
       return y - 22;
     };
 
-    // --- 3. PROCESSO DE DESENHO DINÂMICO ---
     let paginaAtual = page2;
-    let yAtual = 460; // Começa na posição correta do verso do CEUB
+    let yAtual = 460; 
     yAtual = desenharCabecalhoManual(paginaAtual, yAtual);
 
     if (cronograma && cronograma.length > 0) {
       cronograma.forEach((aula: any) => {
-        const dataAulaRaw = String(aula['Data'] || "").trim();
-        if (!dataAulaRaw) return;
+        const dataOriginal = String(aula['Data'] || "").trim();
+        const dataNormalizada = dataOriginal.replace(/\D/g, "");
+        const chaveAluno = Object.keys(aluno).find(key => String(key).replace(/\D/g, "") === dataNormalizada);
+        
+        const presencaBruta = chaveAluno ? limparValor(aluno[chaveAluno]) : "";
 
-        // Lógica de busca de presença na planilha
-        const dataNormalizada = dataAulaRaw.replace(/\D/g, "");
-        const chaveObj = Object.keys(aluno).find(key => String(key).replace(/\D/g, "") === dataNormalizada);
-        const presenca = chaveObj ? limparValor(aluno[chaveObj]) : "";
+        // FILTRO: Só desenha se tiver presença válida
+        if (presencaBruta && presencaBruta !== "00:00" && presencaBruta !== "00:00:00") {
+          let dataFormatada = dataOriginal;
+          if (!isNaN(Number(dataFormatada)) && dataFormatada.length > 3) {
+            const dataObjeto = new Date(Math.round((Number(dataFormatada) - 25569) * 86400 * 1000));
+            dataFormatada = dataObjeto.toLocaleDateString('pt-BR');
+          }
 
-        if (presenca !== "" && presenca !== "00:00:00") {
-          // Salto de página automático
           if (yAtual - alturaLinha < limiteInferior) {
             paginaAtual = pdfDoc.addPage([841.89, 595.28]);
-            yAtual = 550; // Em novas páginas, começamos mais alto
+            yAtual = 550; 
             yAtual = desenharCabecalhoManual(paginaAtual, yAtual);
           }
 
           const yTexto = yAtual - 15;
-          paginaAtual.drawText(dataAulaRaw, { x: margemEsquerda + 5, y: yTexto, size: 9, font: fontRegular });
-          paginaAtual.drawText(limparValor(aula['Local']), { x: margemEsquerda + colunas.data + 5, y: yTexto, size: 9, font: fontRegular });
-          paginaAtual.drawText(presenca, { x: margemEsquerda + colunas.data + colunas.local + 5, y: yTexto, size: 9, font: fontRegular });
-          
-          const tema = limparValor(aula['Tema']);
-          const temaCurto = tema.length > 55 ? tema.substring(0, 52) + "..." : tema;
-          paginaAtual.drawText(temaCurto, { x: margemEsquerda + colunas.data + colunas.local + colunas.horas + 5, y: yTexto, size: 8, font: fontRegular });
-          
-          paginaAtual.drawText(limparValor(aula['Palestrante']), { x: margemEsquerda + colunas.data + colunas.local + colunas.horas + colunas.tema + 5, y: yTexto, size: 8, font: fontRegular });
+          const dadosParaDesenhar = [
+            { texto: dataFormatada, colIndex: 0, size: 9 },
+            { texto: limparValor(aula['Local']), colIndex: 1, size: 9 },
+            { texto: presencaBruta, colIndex: 2, size: 9 },
+            { texto: (limparValor(aula['Tema']).length > 55 ? limparValor(aula['Tema']).substring(0, 52) + "..." : limparValor(aula['Tema'])), colIndex: 3, size: 8 },
+            { texto: limparValor(aula['Palestrante']), colIndex: 4, size: 8 }
+          ];
+
+          dadosParaDesenhar.forEach(item => {
+            const col = colunas[item.colIndex];
+            const xCentro = obterXCentro(item.texto, col.largura, col.x, item.size, fontRegular);
+            paginaAtual.drawText(item.texto, { x: xCentro, y: yTexto, size: item.size, font: fontRegular });
+          });
 
           yAtual -= alturaLinha;
           paginaAtual.drawLine({ start: { x: margemEsquerda, y: yAtual }, end: { x: margemEsquerda + larguraTotal, y: yAtual }, thickness: 1 });
           
-          // Linhas Verticais
-          const xPts = [0, colunas.data, colunas.data+colunas.local, colunas.data+colunas.local+colunas.horas, colunas.data+colunas.local+colunas.horas+colunas.tema, larguraTotal];
-          xPts.forEach(xPos => {
-            paginaAtual.drawLine({ start: { x: margemEsquerda+xPos, y: yAtual+alturaLinha }, end: { x: margemEsquerda+xPos, y: yAtual }, thickness: 1 });
+          [0, 80, 180, 230, 510, larguraTotal].forEach(xRel => {
+            paginaAtual.drawLine({ 
+              start: { x: margemEsquerda + xRel, y: yAtual + alturaLinha }, 
+              end: { x: margemEsquerda + xRel, y: yAtual }, 
+              thickness: 1 
+            });
           });
         }
       });
-    } else {
-      page2.drawText("CRONOGRAMA NÃO ENCONTRADO", { x: 250, y: 300, size: 15, font: fontBold, color: rgb(0.8, 0, 0) });
     }
 
     const pdfBytes = await pdfDoc.save();
