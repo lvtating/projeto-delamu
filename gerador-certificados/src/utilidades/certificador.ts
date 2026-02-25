@@ -130,8 +130,8 @@ export const gerarZipCertificados = async (
       pagina.drawLine({ start: { x: margemEsquerda, y }, end: { x: margemEsquerda + larguraTotal, y }, thickness: 1 });
       const yTexto = y - 15;
       colunas.forEach(col => {
-        const xCentro = obterXCentro(col.label, col.largura, col.x, 10, fontBold);
-        pagina.drawText(col.label, { x: xCentro, y: yTexto, size: 10, font: fontBold });
+        const xCentro = obterXCentro(col.label, col.largura, col.x, 17.6, fontBold);
+        pagina.drawText(col.label, { x: xCentro, y: yTexto, size: 17.6, font: fontBold });
       });
       pagina.drawLine({ start: { x: margemEsquerda, y: y - 22 }, end: { x: margemEsquerda + larguraTotal, y: y - 22 }, thickness: 1 });
       return y - 22;
@@ -165,11 +165,11 @@ export const gerarZipCertificados = async (
 
           const yTexto = yAtual - 15;
           const dadosParaDesenhar = [
-            { texto: dataFormatada, colIndex: 0, size: 9 },
-            { texto: limparValor(aula['Local']), colIndex: 1, size: 9 },
-            { texto: presencaBruta, colIndex: 2, size: 9 },
-            { texto: (limparValor(aula['Tema']).length > 55 ? limparValor(aula['Tema']).substring(0, 52) + "..." : limparValor(aula['Tema'])), colIndex: 3, size: 8 },
-            { texto: limparValor(aula['Palestrante']), colIndex: 4, size: 8 }
+            { texto: dataFormatada, colIndex: 0, size: 12 },
+            { texto: limparValor(aula['Local']), colIndex: 1, size: 12 },
+            { texto: presencaBruta, colIndex: 2, size: 12 },
+            { texto: (limparValor(aula['Tema']).length > 55 ? limparValor(aula['Tema']).substring(0, 52) + "..." : limparValor(aula['Tema'])), colIndex: 3, size: 12 },
+            { texto: limparValor(aula['Palestrante']), colIndex: 4, size: 12 }
           ];
 
           dadosParaDesenhar.forEach(item => {
