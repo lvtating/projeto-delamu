@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import { gerarZipCertificados } from '../utilidades/certificador';
 
 export default function GeradorPage() {
-  // Alterado para armazenar o objeto com alunos e cronograma
+  //armazena alunos e cronograma
   const [dados, setDados] = useState<{ alunos: any[], cronograma: any[] } | null>(null);
   const [templateFrente, setTemplateFrente] = useState<Uint8Array | null>(null);
   const [templateVerso, setTemplateVerso] = useState<Uint8Array | null>(null);
@@ -16,7 +16,7 @@ export default function GeradorPage() {
     coordenadorCurso: ""
   });
 
-  // Carrega os dois templates (Frente e Verso) automaticamente
+  // carrega frente e verso automaticamente
   useEffect(() => {
     const carregarTemplates = async () => {
       try {
@@ -53,21 +53,20 @@ const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const wb = XLSX.read(bstr, { type: 'binary', raw: false });
         const ws = wb.Sheets[wb.SheetNames[0]];
         
-        // Convertemos para matriz de strings para evitar problemas de tipos
         const matriz: string[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
 
         let listaAlunos: any[] = [];
         let listaCrono: any[] = [];
         
-        // 1. EXTRAÇÃO DE ALUNOS (Procuramos pela linha que contém 'Nome')
+        // 1. nome dos alunos
         const indexLinhaAlunos = matriz.findIndex(row => row.some(cell => String(cell).trim() === "Nome"));
         if (indexLinhaAlunos !== -1) {
           const cabecalho = matriz[indexLinhaAlunos].map(c => String(c).trim());
-          // Pegamos as linhas abaixo até encontrar uma linha vazia ou a tabela de aulas
+          // pega as células de baixo até encontrar uma linha vazia ou a tabela de aulas
           for (let i = indexLinhaAlunos + 1; i < matriz.length; i++) {
             const linha = matriz[i];
-            if (!linha[cabecalho.indexOf("Nome")]) break; // Para se não houver nome
-            if (linha.some(cell => String(cell).trim() === "Data")) break; // Para se chegar nas aulas
+            if (!linha[cabecalho.indexOf("Nome")]) break; // quebra o loop se não houver nome
+            if (linha.some(cell => String(cell).trim() === "Data")) break; // quebra o loop se encontrar a linha de cronograma ("data")
             
             const obj: any = {};
             cabecalho.forEach((label, idx) => { if(label) obj[label] = linha[idx]; });
@@ -75,15 +74,14 @@ const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
           }
         }
 
-        // 2. EXTRAÇÃO DE CRONOGRAMA 
+        // 2. extração do cronograma de aulas (segunda planilha)
         const indexLinhaCrono = matriz.findIndex(row => row.some(cell => String(cell).trim() === "Data"));
         
         if (indexLinhaCrono !== -1) {
           const cabecalhoCrono = matriz[indexLinhaCrono].map(c => String(c).trim());
-          // Pegamos tudo o que estiver abaixo desta linha
           for (let i = indexLinhaCrono + 1; i < matriz.length; i++) {
             const linha = matriz[i];
-            if (!linha[cabecalhoCrono.indexOf("Data")]) continue; // Pula linhas sem data
+            if (!linha[cabecalhoCrono.indexOf("Data")]) continue; 
 
             const obj: any = {};
             cabecalhoCrono.forEach((label, idx) => { 
@@ -108,16 +106,17 @@ const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
   };
 
   return (
-    <main className="min-h-screen p-8 bg-[#F5F2D0] flex flex-col items-center">
-      <h1 className="text-3xl font-bold mb-6 text-[#800000]">Gerador DeLAMU</h1>
+    <main className="w-full min-h-screen flex flex-col items-center p-8 bg-no-repeat bg-bottom bg-cover" style={{ backgroundImage: 'url(/background.svg)' }}>
+      <h1 className="text-3xl font-bold mb-6 text-[#a62828]">Gerador DeLAMU</h1>
       
-      <div className="bg-[#FFFFF0] p-6 rounded-lg shadow-md w-full max-w-md space-y-4 mb-6 border border-gray-100">
-        <h2 className="font-bold text-[#800000] border-b pb-2 flex items-center gap-2">
+      {/*primeiro container*/}
+      <div className="bg-[#f4f1e9]/60 p-6 rounded-lg shadow-md w-full max-w-md space-y-4 mb-6 border border-gray-100">
+        <h2 className="font-bold text-[#a62828] border-b pb-2 flex items-center gap-2">
           <span>✍️</span> Assinaturas do Certificado
         </h2>
         
         <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase">Coordenador da Liga</label>
+          <label className="block text-xs font-semibold text-[#1a1817] uppercase">Coordenador da Liga</label>
           <input 
             type="text" 
             value={gestao.coordenadorLiga}
@@ -128,7 +127,7 @@ const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase">Presidente do DeLAMU</label>
+          <label className="block text-xs font-semibold text-[#1a1817] uppercase">Presidente do DeLAMU</label>
           <input 
             type="text" 
             value={gestao.presidenteDelamu}
@@ -139,7 +138,7 @@ const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-500 uppercase">Coordenador do Curso</label>
+          <label className="block text-xs font-semibold text-[#1a1817] uppercase">Coordenador do Curso</label>
           <input 
             type="text" 
             value={gestao.coordenadorCurso}
@@ -150,14 +149,15 @@ const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow-md w-full max-w-md space-y-6 border border-gray-100">
+      {/*segundo container*/}
+      <div className="bg-[#f4f1e9]/60 p-6 rounded-lg shadow-md w-full max-w-md space-y-6 border border-gray-100">
         <div className="border-2 border-dashed border-gray-200 p-4 rounded-lg hover:border-[#800000] transition-colors">
-          <label className="block text-sm font-medium mb-2 text-gray-700">1. Suba a Planilha Única</label>
+          <label className="block text-sm font-medium mb-2 text-gray-500">1. Suba a Planilha Única</label>
           <input 
             type="file" 
             accept=".xlsx, .xls" 
             onChange={handleExcelUpload} 
-            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#800000] file:text-white" 
+            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:hover:bg-[#c47c74] file:bg-[#a62828] file:text-white" 
           />
         </div>
 
@@ -173,7 +173,7 @@ const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         <button
           onClick={() => dados && templateFrente && templateVerso && gerarZipCertificados(dados.alunos, dados.cronograma, templateFrente, templateVerso, gestao)}
           disabled={!templateFrente || !templateVerso || !dados || !gestao.coordenadorLiga || !gestao.presidenteDelamu || !gestao.coordenadorCurso}
-          className="w-full bg-[#800000] text-white py-4 rounded-md font-bold hover:bg-[#8B0000] disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed transition-all shadow-lg"
+          className="w-full bg-[#800000] text-white py-4 rounded-md font-bold hover:bg-[#c47c74] disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed transition-all shadow-lg"
         >
           {dados ? `2. GERAR CERTIFICADOS (.ZIP)` : "Aguardando Excel..."}
         </button>

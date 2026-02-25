@@ -149,7 +149,7 @@ export const gerarZipCertificados = async (
         
         const presencaBruta = chaveAluno ? limparValor(aluno[chaveAluno]) : "";
 
-        // FILTRO: Só desenha se tiver presença válida
+        // FILTRO: só desenha na planilha as presenças válidas
         if (presencaBruta && presencaBruta !== "00:00" && presencaBruta !== "00:00:00") {
           let dataFormatada = dataOriginal;
           if (!isNaN(Number(dataFormatada)) && dataFormatada.length > 3) {
