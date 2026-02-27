@@ -12,6 +12,7 @@ export const gerarZipCertificados = async (
 ) => {
   const zip = new JSZip();
 
+  // Carregamento das fontes customizadas
   const [boldBytes, regularBytes] = await Promise.all([
     fetch('/fonts/JosefinSlab-Bold.ttf').then(res => res.arrayBuffer()),
     fetch('/fonts/JosefinSlab-Regular.ttf').then(res => res.arrayBuffer())
@@ -46,6 +47,11 @@ export const gerarZipCertificados = async (
     return lines;
   };
 
+  const obterXCentro = (texto: string, larguraCol: number, xBase: number, tamanho: number, fonte: any) => {
+    const larguraTexto = fonte.widthOfTextAtSize(texto, tamanho);
+    return xBase + (larguraCol / 2) - (larguraTexto / 2);
+  };
+
   for (const aluno of dadosAlunos) {
     const nomeBruto = aluno['Nome'] || Object.values(aluno)[0];
     const nome = String(nomeBruto || '').trim().toUpperCase();
@@ -61,6 +67,7 @@ export const gerarZipCertificados = async (
     const imgFrente = await pdfDoc.embedPng(templateFrente);
     page1.drawImage(imgFrente, { x: 0, y: 0, width: 841.89, height: 595.28 });
 
+    // Ajuste dinâmico do nome para não sair da margem
     let nomeSize = 38;
     const larguraMaximaNome = 700;
     let nomeWidth = fontBold.widthOfTextAtSize(nome, nomeSize);
@@ -78,6 +85,7 @@ export const gerarZipCertificados = async (
       color: rgb(0.1, 0.1, 0.1),
     });
 
+    // Frase de corpo
     const cargo = limparValor(aluno['Cargo'] || 'Membro');
     const liga = limparValor(aluno['Liga'] || 'DeLAMU');
     const inicio = limparValor(aluno['Início'] || 'Julho');
@@ -92,6 +100,7 @@ export const gerarZipCertificados = async (
       page1.drawText(linha, { x: (841.89/2) - (lWidth/2), y: 260 - (i * 22), size: 17, font: fontRegular });
     });
 
+    // Assinaturas
     const fontSizeAssinatura = 10;
     const desenharAssinatura = (texto: string, xCentro: number) => {
       const txt = (texto || "").toUpperCase();
@@ -121,11 +130,6 @@ export const gerarZipCertificados = async (
       { id: 'palestrante', label: 'Palestrante', largura: 180, x: margemEsquerda + 510 }
     ];
 
-    const obterXCentro = (texto: string, larguraCol: number, xBase: number, tamanho: number, fonte: any) => {
-      const larguraTexto = fonte.widthOfTextAtSize(texto, tamanho);
-      return xBase + (larguraCol / 2) - (larguraTexto / 2);
-    };
-
     const desenharCabecalhoManual = (pagina: any, y: number) => {
       pagina.drawLine({ start: { x: margemEsquerda, y }, end: { x: margemEsquerda + larguraTotal, y }, thickness: 1 });
       const yTexto = y - 15;
@@ -149,11 +153,15 @@ export const gerarZipCertificados = async (
         
         const presencaBruta = chaveAluno ? limparValor(aluno[chaveAluno]) : "";
 
-        // FILTRO: só desenha na planilha as presenças válidas
+        // FILTRO: Só desenha se tiver presença válida (ignora 00:00)
         if (presencaBruta && presencaBruta !== "00:00" && presencaBruta !== "00:00:00") {
+          
           let dataFormatada = dataOriginal;
           if (!isNaN(Number(dataFormatada)) && dataFormatada.length > 3) {
-            const dataObjeto = new Date(Math.round((Number(dataFormatada) - 25569) * 86400 * 1000));
+            const milissegundos = Math.round((Number(dataFormatada) - 25569) * 86400 * 1000);
+            const dataObjeto = new Date(milissegundos);
+            // Corrige o fuso horário para não retroceder um dia
+            dataObjeto.setMinutes(dataObjeto.getMinutes() + dataObjeto.getTimezoneOffset());
             dataFormatada = dataObjeto.toLocaleDateString('pt-BR');
           }
 
@@ -165,11 +173,11 @@ export const gerarZipCertificados = async (
 
           const yTexto = yAtual - 15;
           const dadosParaDesenhar = [
-            { texto: dataFormatada, colIndex: 0, size: 12 },
-            { texto: limparValor(aula['Local']), colIndex: 1, size: 12 },
-            { texto: presencaBruta, colIndex: 2, size: 12 },
-            { texto: (limparValor(aula['Tema']).length > 55 ? limparValor(aula['Tema']).substring(0, 52) + "..." : limparValor(aula['Tema'])), colIndex: 3, size: 12 },
-            { texto: limparValor(aula['Palestrante']), colIndex: 4, size: 12 }
+            { texto: dataFormatada, colIndex: 0, size: 12.5 },
+            { texto: limparValor(aula['Local']), colIndex: 1, size: 12.5 },
+            { texto: presencaBruta, colIndex: 2, size: 12.5 },
+            { texto: (limparValor(aula['Tema']).length > 55 ? limparValor(aula['Tema']).substring(0, 52) + "..." : limparValor(aula['Tema'])), colIndex: 3, size: 12.5 },
+            { texto: limparValor(aula['Palestrante']), colIndex: 4, size: 12.5 }
           ];
 
           dadosParaDesenhar.forEach(item => {
@@ -179,8 +187,9 @@ export const gerarZipCertificados = async (
           });
 
           yAtual -= alturaLinha;
-          paginaAtual.drawLine({ start: { x: margemEsquerda, y: yAtual }, end: { x: margemEsquerda + larguraTotal, y: yAtual }, thickness: 1 });
           
+          // Desenha bordas da célula
+          paginaAtual.drawLine({ start: { x: margemEsquerda, y: yAtual }, end: { x: margemEsquerda + larguraTotal, y: yAtual }, thickness: 1 });
           [0, 80, 180, 230, 510, larguraTotal].forEach(xRel => {
             paginaAtual.drawLine({ 
               start: { x: margemEsquerda + xRel, y: yAtual + alturaLinha }, 
