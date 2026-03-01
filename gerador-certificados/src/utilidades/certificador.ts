@@ -3,6 +3,7 @@ import fontkit from '@pdf-lib/fontkit';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
+
 export const gerarZipCertificados = async (
   dadosAlunos: any[], 
   cronograma: any[], 
@@ -12,7 +13,7 @@ export const gerarZipCertificados = async (
 ) => {
   const zip = new JSZip();
 
-  // Carregamento das fontes customizadas
+  // carregamento das fontes customizadas
   const [boldBytes, regularBytes] = await Promise.all([
     fetch('/fonts/JosefinSlab-Bold.ttf').then(res => res.arrayBuffer()),
     fetch('/fonts/JosefinSlab-Regular.ttf').then(res => res.arrayBuffer())
@@ -85,7 +86,7 @@ export const gerarZipCertificados = async (
       color: rgb(0.1, 0.1, 0.1),
     });
 
-    // Frase de corpo
+    // frase de corpo
     const cargo = limparValor(aluno['Cargo'] || 'Membro');
     const liga = limparValor(aluno['Liga'] || 'DeLAMU');
     const inicio = limparValor(aluno['Início'] || 'Julho');
@@ -100,7 +101,7 @@ export const gerarZipCertificados = async (
       page1.drawText(linha, { x: (841.89/2) - (lWidth/2), y: 260 - (i * 22), size: 17, font: fontRegular });
     });
 
-    // Assinaturas
+    // assinaturas
     const fontSizeAssinatura = 10;
     const desenharAssinatura = (texto: string, xCentro: number) => {
       const txt = (texto || "").toUpperCase();
@@ -153,7 +154,7 @@ export const gerarZipCertificados = async (
         
         const presencaBruta = chaveAluno ? limparValor(aluno[chaveAluno]) : "";
 
-        // FILTRO: Só desenha se tiver presença válida (ignora 00:00)
+        // FILTRO: só desenha se tiver presença válida (ignora 00:00)
         if (presencaBruta && presencaBruta !== "00:00" && presencaBruta !== "00:00:00") {
           
           let dataFormatada = dataOriginal;
@@ -188,7 +189,7 @@ export const gerarZipCertificados = async (
 
           yAtual -= alturaLinha;
           
-          // Desenha bordas da célula
+          // desenha bordas da célula
           paginaAtual.drawLine({ start: { x: margemEsquerda, y: yAtual }, end: { x: margemEsquerda + larguraTotal, y: yAtual }, thickness: 1 });
           [0, 80, 180, 230, 510, larguraTotal].forEach(xRel => {
             paginaAtual.drawLine({ 
