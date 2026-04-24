@@ -21,13 +21,20 @@ export const gerarZipCertificados = async (
 
   const limparValor = (valor: any) => {
     if (valor === undefined || valor === null || valor === 'undefined') return '';
-    if (typeof valor === 'number' && valor < 1) {
-      const totalSeconds = Math.round(valor * 24 * 3600);
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-    }
     return String(valor).trim();
+  };
+
+  const formatarHorasExcel = (valor: any) => {
+    if (valor === undefined || valor === null) return '00:00';
+    
+    const num = Number(valor);
+    if (isNaN(num)) return String(valor).trim();
+
+    const totalSeconds = Math.round(num * 24 * 3600);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
   };
 
   const wrapText = (text: string, width: number, font: any, size: number) => {
@@ -68,7 +75,7 @@ export const gerarZipCertificados = async (
     const imgFrente = await pdfDoc.embedPng(templateFrente);
     page1.drawImage(imgFrente, { x: 0, y: 0, width: 841.89, height: 595.28 });
 
-    // Ajuste dinâmico do nome para não sair da margem
+    // ajuda para centralizar o nome, com ajuste automático de tamanho se for muito longo
     let nomeSize = 38;
     const larguraMaximaNome = 700;
     let nomeWidth = fontBold.widthOfTextAtSize(nome, nomeSize);
@@ -92,7 +99,8 @@ export const gerarZipCertificados = async (
     const inicio = limparValor(aluno['Início'] || 'Julho');
     const fim = limparValor(aluno['Conclusão'] || 'Dezembro');
     const ano = limparValor(aluno['Ano'] || '2025');
-    const horasTotal = limparValor(aluno['Horas'] || '00:00');
+
+    const horasTotal = formatarHorasExcel(aluno['Horas']);
 
     const frase = `Pela participação na condição de ${cargo} da Liga Acadêmica de ${liga} do CEUB, durante os meses de ${inicio} a ${fim} de ${ano}, totalizando ${horasTotal} horas complementares.`;
     const linhasFrase = wrapText(frase, 650, fontRegular, 17);
@@ -102,7 +110,7 @@ export const gerarZipCertificados = async (
     });
 
     // assinaturas
-    const fontSizeAssinatura = 10;
+    const fontSizeAssinatura = 15;
     const desenharAssinatura = (texto: string, xCentro: number) => {
       const txt = (texto || "").toUpperCase();
       const txtWidth = fontRegular.widthOfTextAtSize(txt, fontSizeAssinatura);
@@ -161,7 +169,7 @@ export const gerarZipCertificados = async (
           if (!isNaN(Number(dataFormatada)) && dataFormatada.length > 3) {
             const milissegundos = Math.round((Number(dataFormatada) - 25569) * 86400 * 1000);
             const dataObjeto = new Date(milissegundos);
-            // Corrige o fuso horário para não retroceder um dia
+           
             dataObjeto.setMinutes(dataObjeto.getMinutes() + dataObjeto.getTimezoneOffset());
             dataFormatada = dataObjeto.toLocaleDateString('pt-BR');
           }
@@ -172,14 +180,16 @@ export const gerarZipCertificados = async (
             yAtual = desenharCabecalhoManual(paginaAtual, yAtual);
           }
 
+          const temaOriginal = limparValor(aula['Tema']);
+          const temaCortado = temaOriginal.length > 40 ? temaOriginal.substring(0, 37) + "..." : temaOriginal;
           const yTexto = yAtual - 15;
           const dadosParaDesenhar = [
-            { texto: dataFormatada, colIndex: 0, size: 12.5 },
-            { texto: limparValor(aula['Local']), colIndex: 1, size: 12.5 },
-            { texto: presencaBruta, colIndex: 2, size: 12.5 },
-            { texto: (limparValor(aula['Tema']).length > 55 ? limparValor(aula['Tema']).substring(0, 52) + "..." : limparValor(aula['Tema'])), colIndex: 3, size: 12.5 },
-            { texto: limparValor(aula['Palestrante']), colIndex: 4, size: 12.5 }
-          ];
+          { texto: dataFormatada, colIndex: 0, size: 12.5 },
+          { texto: limparValor(aula['Local']), colIndex: 1, size: 12.5 },
+          { texto: presencaBruta, colIndex: 2, size: 12.5 },
+          { texto: temaCortado, colIndex: 3, size: 12.5 },
+          { texto: limparValor(aula['Palestrante']), colIndex: 4, size: 12.5 }
+        ];
 
           dadosParaDesenhar.forEach(item => {
             const col = colunas[item.colIndex];
