@@ -25,7 +25,7 @@ export const gerarZipCertificados = async (
   };
 
   const formatarHorasExcel = (valor: any) => {
-    if (valor === undefined || valor === null) return '00:00';
+    if (valor === undefined || valor === null || valor === '00:00' || valor === '') return '00:00';
     
     const num = Number(valor);
     if (isNaN(num)) return String(valor).trim();
@@ -35,6 +35,29 @@ export const gerarZipCertificados = async (
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  };
+  
+    const ajustarTextoEFontSize = (texto: string, larguraMaxima: number, fontSizeOriginal: number, fonte: any) => {
+      let size = fontSizeOriginal;
+      let txt = texto;
+      let larguraTexto = fonte.widthOfTextAtSize(txt, size);
+
+      if (larguraTexto > larguraMaxima) {
+        while (larguraTexto > larguraMaxima && size > 9) {
+          size -= 0.5;
+          larguraTexto = fonte.widthOfTextAtSize(txt, size);
+        }
+      }
+
+      if (larguraTexto > larguraMaxima) {
+        while (larguraTexto > larguraMaxima && txt.length > 0) {
+          txt = txt.substring(0, txt.length - 1);
+          larguraTexto = fonte.widthOfTextAtSize(txt + "...", size);
+        }
+        txt = txt + "...";
+      }
+
+    return { texto: txt, size };
   };
 
   const wrapText = (text: string, width: number, font: any, size: number) => {
@@ -132,11 +155,11 @@ export const gerarZipCertificados = async (
     const limiteInferior = 80; 
 
     const colunas = [
-      { id: 'data', label: 'Data', largura: 80, x: margemEsquerda },
-      { id: 'local', label: 'Local', largura: 100, x: margemEsquerda + 80 },
-      { id: 'horas', label: 'Horas', largura: 50, x: margemEsquerda + 180 },
-      { id: 'tema', label: 'Tema', largura: 280, x: margemEsquerda + 230 },
-      { id: 'palestrante', label: 'Palestrante', largura: 180, x: margemEsquerda + 510 }
+      { id: 'data', label: 'Data', largura: 90, x: margemEsquerda },
+      { id: 'local', label: 'Local', largura: 130, x: margemEsquerda + 90 },
+      { id: 'horas', label: 'Horas', largura: 60, x: margemEsquerda + 220 },
+      { id: 'tema', label: 'Tema', largura: 250, x: margemEsquerda + 280 },
+      { id: 'palestrante', label: 'Palestrante', largura: 180, x: margemEsquerda + 540 }
     ];
 
     const desenharCabecalhoManual = (pagina: any, y: number) => {
@@ -160,16 +183,17 @@ export const gerarZipCertificados = async (
         const dataNormalizada = dataOriginal.replace(/\D/g, "");
         const chaveAluno = Object.keys(aluno).find(key => String(key).replace(/\D/g, "") === dataNormalizada);
         
-        const presencaBruta = chaveAluno ? limparValor(aluno[chaveAluno]) : "";
+        const presencaBruta = chaveAluno ? aluno[chaveAluno] : "";
+        
+        const horaFormatadaLinha = formatarHorasExcel(presencaBruta);
 
-        // FILTRO: só desenha se tiver presença válida (ignora 00:00)
-        if (presencaBruta && presencaBruta !== "00:00" && presencaBruta !== "00:00:00") {
+        // FILTRO: só desenha se tiver presença válida
+        if (presencaBruta && horaFormatadaLinha !== "00:00") {
           
           let dataFormatada = dataOriginal;
           if (!isNaN(Number(dataFormatada)) && dataFormatada.length > 3) {
             const milissegundos = Math.round((Number(dataFormatada) - 25569) * 86400 * 1000);
             const dataObjeto = new Date(milissegundos);
-           
             dataObjeto.setMinutes(dataObjeto.getMinutes() + dataObjeto.getTimezoneOffset());
             dataFormatada = dataObjeto.toLocaleDateString('pt-BR');
           }
@@ -182,14 +206,26 @@ export const gerarZipCertificados = async (
 
           const temaOriginal = limparValor(aula['Tema']);
           const temaCortado = temaOriginal.length > 40 ? temaOriginal.substring(0, 37) + "..." : temaOriginal;
+
+          const localOriginal = limparValor(aula['Local']);
+          const localCortado = localOriginal.length > 20 ? localOriginal.substring(0, 17) + "..." : localOriginal;
+
+          const palestranteOriginal = limparValor(aula['Palestrante']);
+          const palestranteCortado = palestranteOriginal.length > 25 ? palestranteOriginal.substring(0, 22) + "..." : palestranteOriginal;
+
           const yTexto = yAtual - 15;
+
+          const localAjustado = ajustarTextoEFontSize(limparValor(aula['Local']), colunas[1].largura - 10, 12.5, fontRegular);
+          const temaAjustado = ajustarTextoEFontSize(limparValor(aula['Tema']), colunas[3].largura - 10, 12.5, fontRegular);
+          const palestranteAjustado = ajustarTextoEFontSize(limparValor(aula['Palestrante']), colunas[4].largura - 10, 12.5, fontRegular);
+
           const dadosParaDesenhar = [
-          { texto: dataFormatada, colIndex: 0, size: 12.5 },
-          { texto: limparValor(aula['Local']), colIndex: 1, size: 12.5 },
-          { texto: presencaBruta, colIndex: 2, size: 12.5 },
-          { texto: temaCortado, colIndex: 3, size: 12.5 },
-          { texto: limparValor(aula['Palestrante']), colIndex: 4, size: 12.5 }
-        ];
+            { texto: dataFormatada, colIndex: 0, size: 12.5 },
+            { texto: localAjustado.texto, colIndex: 1, size: localAjustado.size },
+            { texto: horaFormatadaLinha, colIndex: 2, size: 12.5 },
+            { texto: temaAjustado.texto, colIndex: 3, size: temaAjustado.size },
+            { texto: palestranteAjustado.texto, colIndex: 4, size: palestranteAjustado.size }
+          ];
 
           dadosParaDesenhar.forEach(item => {
             const col = colunas[item.colIndex];
@@ -199,9 +235,9 @@ export const gerarZipCertificados = async (
 
           yAtual -= alturaLinha;
           
-          // desenha bordas da célula
+          // Desenha as bordas verticais com as larguras corretas
           paginaAtual.drawLine({ start: { x: margemEsquerda, y: yAtual }, end: { x: margemEsquerda + larguraTotal, y: yAtual }, thickness: 1 });
-          [0, 80, 180, 230, 510, larguraTotal].forEach(xRel => {
+          [0, 90, 220, 280, 530, larguraTotal].forEach(xRel => { // Ajuste leve nos divisores
             paginaAtual.drawLine({ 
               start: { x: margemEsquerda + xRel, y: yAtual + alturaLinha }, 
               end: { x: margemEsquerda + xRel, y: yAtual }, 
