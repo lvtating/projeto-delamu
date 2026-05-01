@@ -50,18 +50,42 @@ export default function GeradorPage() {
         let listaAlunos: any[] = [];
         let listaCrono: any[] = [];
         
-        const indexLinhaAlunos = matriz.findIndex(row => row.some(cell => String(cell).trim() === "Nome"));
-        if (indexLinhaAlunos !== -1) {
-          const cabecalho = matriz[indexLinhaAlunos].map(c => String(c).trim());
-          for (let i = indexLinhaAlunos + 1; i < matriz.length; i++) {
-            const linha = matriz[i];
-            if (!linha[cabecalho.indexOf("Nome")]) break;
-            if (linha.some(cell => String(cell).trim() === "Data")) break;
-            const obj: any = {};
-            cabecalho.forEach((label, idx) => { if(label) obj[label] = linha[idx]; });
-            listaAlunos.push(obj);
-          }
-        }
+        //bloco de leitura dos alunos
+const indexLinhaAlunos = matriz.findIndex(row => row.some(cell => String(cell).trim() === "Nome"));
+if (indexLinhaAlunos !== -1) {
+  const cabecalho = matriz[indexLinhaAlunos].map(c => String(c).trim());
+  const camposTexto = ["Nome", "Cargo", "Liga", "Início", "Conclusão", "Ano", "Horas"];
+
+  // Descobre quais índices de coluna são datas (não são campos de texto)
+  const indicesDatas = cabecalho
+    .map((label, idx) => ({ label, idx }))
+    .filter(({ label }) => label && !camposTexto.includes(label));
+
+  for (let i = indexLinhaAlunos + 1; i < matriz.length; i++) {
+    const linha = matriz[i];
+    if (!linha[cabecalho.indexOf("Nome")]) break;
+    if (linha.some(cell => String(cell).trim() === "Data")) break;
+
+    const obj: any = {};
+
+    // Campos de texto normais
+    camposTexto.forEach(campo => {
+      const idx = cabecalho.indexOf(campo);
+      if (idx !== -1) obj[campo] = linha[idx];
+    });
+
+    // Campos de data com índice do cronograma
+    indicesDatas.forEach(({ label, idx }, ordemNoCronograma) => {
+      obj[`__col_${idx}`] = {
+        data: label,
+        valor: linha[idx],
+        cronogramaIndex: ordemNoCronograma
+      };
+    });
+
+    listaAlunos.push(obj);
+  }
+}
 
         const indexLinhaCrono = matriz.findIndex(row => row.some(cell => String(cell).trim() === "Data"));
         if (indexLinhaCrono !== -1) {
