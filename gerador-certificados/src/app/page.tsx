@@ -64,7 +64,7 @@ if (indexLinhaAlunos !== -1) {
   for (let i = indexLinhaAlunos + 1; i < matriz.length; i++) {
     const linha = matriz[i];
     if (!linha[cabecalho.indexOf("Nome")]) break;
-    if (linha.some(cell => String(cell).trim() === "Data")) break;
+    if (linha.some(cell => String(cell).trim().startsWith("Data"))) break;
 
     const obj: any = {};
 
@@ -87,7 +87,7 @@ if (indexLinhaAlunos !== -1) {
   }
 }
 
-        const indexLinhaCrono = matriz.findIndex(row => row.some(cell => String(cell).trim() === "Data"));
+      const indexLinhaCrono = matriz.findIndex(row => row.some(cell => String(cell).trim().startsWith("Data")));
         if (indexLinhaCrono !== -1) {
           const cabecalhoCrono = matriz[indexLinhaCrono].map(c => String(c).trim());
           for (let i = indexLinhaCrono + 1; i < matriz.length; i++) {
