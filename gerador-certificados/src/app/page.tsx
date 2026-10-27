@@ -134,7 +134,7 @@ if (indexLinhaAlunos !== -1) {
               value={gestao.coordenadorLiga}
               onChange={(e) => setGestao({...gestao, coordenadorLiga: e.target.value})}
               className="w-full border p-2 rounded text-sm text-black focus:ring-2 focus:ring-[#800000] outline-none"
-              placeholder="Nome à esquerda"
+              placeholder="Nome COMPLETO"
               autoComplete="on"
             />
           </div>
@@ -148,7 +148,7 @@ if (indexLinhaAlunos !== -1) {
               value={gestao.presidenteDelamu}
               onChange={(e) => setGestao({...gestao, presidenteDelamu: e.target.value})}
               className="w-full border p-2 rounded text-sm text-black focus:ring-2 focus:ring-[#800000] outline-none"
-              placeholder="Nome ao centro"
+              placeholder="Nome COMPLETO"
               autoComplete="on"
             />
           </div>
@@ -162,7 +162,7 @@ if (indexLinhaAlunos !== -1) {
               value={gestao.coordenadorCurso}
               onChange={(e) => setGestao({...gestao, coordenadorCurso: e.target.value})}
               className="w-full border p-2 rounded text-sm text-black focus:ring-2 focus:ring-[#800000] outline-none"
-              placeholder='Nome à direita'
+              placeholder='Nome COMPLETO'
               autoComplete="on"
             />
           </div>

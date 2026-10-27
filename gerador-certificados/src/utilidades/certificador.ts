@@ -30,7 +30,9 @@ export const gerarZipCertificados = async (
     const totalSeconds = Math.round(num * 24 * 3600);
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    if (minutes === 0) return `${hours} hora${hours !== 1 ? 's' : ''}`;
+    if (hours === 0) return `${minutes} minuto${minutes !== 1 ? 's' : ''}`;
+    return `${hours} hora${hours !== 1 ? 's' : ''} e ${minutes} minuto${minutes !== 1 ? 's' : ''}`;
   };
 
   const ajustarTextoEFontSize = (texto: string, larguraMaxima: number, fontSizeOriginal: number, fonte: any) => {
@@ -121,7 +123,7 @@ export const gerarZipCertificados = async (
     const ano = limparValor(aluno['Ano'] || '2025');
     const horasTotal = formatarHorasExcel(aluno['Horas']);
 
-    const frase = `Pela participação na condição de ${cargo} da Liga Acadêmica de ${liga} do CEUB, durante os meses de ${inicio} a ${fim} de ${ano}, totalizando ${horasTotal} horas complementares.`;
+    const frase = `Pela participação na condição de ${cargo} da Liga Acadêmica de ${liga} do CEUB, durante os meses de ${inicio} a ${fim} de ${ano}, compatível com um total de ${horasTotal} complementares.`;
     const linhasFrase = wrapText(frase, 650, fontRegular, 17);
     linhasFrase.forEach((linha, i) => {
       const lWidth = fontRegular.widthOfTextAtSize(linha, 17);
