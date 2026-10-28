@@ -24,16 +24,26 @@ export const gerarZipCertificados = async (
   };
 
   const formatarHorasExcel = (valor: any) => {
-    if (valor === undefined || valor === null || valor === '00:00' || valor === '') return '00:00';
-    const num = Number(valor);
-    if (isNaN(num)) return String(valor).trim();
-    const totalSeconds = Math.round(num * 24 * 3600);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    if (minutes === 0) return `${hours} hora${hours !== 1 ? 's' : ''}`;
-    if (hours === 0) return `${minutes} minuto${minutes !== 1 ? 's' : ''}`;
-    return `${hours} hora${hours !== 1 ? 's' : ''} e ${minutes} minuto${minutes !== 1 ? 's' : ''}`;
-  };
+  if (valor === undefined || valor === null || valor === '00:00' || valor === '') return '00:00';
+  const num = Number(valor);
+  if (isNaN(num)) return String(valor).trim();
+  const totalSeconds = Math.round(num * 24 * 3600);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+};
+
+const formatarHorasExtenso = (valor: any) => {
+  if (valor === undefined || valor === null || valor === '' ) return '0 horas';
+  const num = Number(valor);
+  if (isNaN(num)) return String(valor).trim();
+  const totalSeconds = Math.round(num * 24 * 3600);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  if (minutes === 0) return `${hours} hora${hours !== 1 ? 's' : ''}`;
+  if (hours === 0) return `${minutes} minuto${minutes !== 1 ? 's' : ''}`;
+  return `${hours} hora${hours !== 1 ? 's' : ''} e ${minutes} minuto${minutes !== 1 ? 's' : ''}`;
+};
 
   const ajustarTextoEFontSize = (texto: string, larguraMaxima: number, fontSizeOriginal: number, fonte: any) => {
     let size = fontSizeOriginal;
@@ -121,7 +131,7 @@ export const gerarZipCertificados = async (
     const inicio = limparValor(aluno['Início'] || 'Julho');
     const fim = limparValor(aluno['Conclusão'] || 'Dezembro');
     const ano = limparValor(aluno['Ano'] || '2025');
-    const horasTotal = formatarHorasExcel(aluno['Horas']);
+    const horasTotal = formatarHorasExtenso(aluno['Horas']);
 
     const frase = `Pela participação na condição de ${cargo} da Liga Acadêmica de ${liga} do CEUB, durante os meses de ${inicio} a ${fim} de ${ano}, compatível com um total de ${horasTotal} complementares.`;
     const linhasFrase = wrapText(frase, 650, fontRegular, 17);
@@ -133,8 +143,35 @@ export const gerarZipCertificados = async (
     const fontSizeAssinatura = 15;
     const desenharAssinatura = (texto: string, xCentro: number) => {
       const txt = (texto || "").toUpperCase();
-      const txtWidth = fontRegular.widthOfTextAtSize(txt, fontSizeAssinatura);
-      page1.drawText(txt, { x: xCentro - (txtWidth / 2), y: 110, size: fontSizeAssinatura, font: fontRegular });
+      const tamanho = 11;
+      const larguraMaxima = 180;
+
+      const palavras = txt.split(' ');
+      let linha1 = '';
+      let linha2 = '';
+      let construindo = true;
+
+      for (const palavra of palavras) {
+        const tentativa = linha1 ? linha1 + ' ' + palavra : palavra;
+        if (construindo && fontRegular.widthOfTextAtSize(tentativa, tamanho) <= larguraMaxima) {
+          linha1 = tentativa;
+        } else {
+          construindo = false;
+          linha2 = linha2 ? linha2 + ' ' + palavra : palavra;
+        }
+      }
+
+      if (linha2) {
+        // duas linhas
+        const w1 = fontRegular.widthOfTextAtSize(linha1, tamanho);
+        const w2 = fontRegular.widthOfTextAtSize(linha2, tamanho);
+        page1.drawText(linha1, { x: xCentro - (w1 / 2), y: 118, size: tamanho, font: fontRegular });
+        page1.drawText(linha2, { x: xCentro - (w2 / 2), y: 104, size: tamanho, font: fontRegular });
+      } else {
+        // uma linha
+        const w = fontRegular.widthOfTextAtSize(linha1, tamanho);
+        page1.drawText(linha1, { x: xCentro - (w / 2), y: 110, size: tamanho, font: fontRegular });
+      }
     };
     desenharAssinatura(gestao.coordenadorLiga, 165);
     desenharAssinatura(gestao.presidenteDelamu, 841.89 / 2);
